@@ -1,0 +1,67 @@
+{
+  "usuarios": [
+    {
+      "id": "1",
+      "nome": "Admin",
+      "email": "admin@email.com",
+      "password": "123"
+    },
+    {
+      "nome": "melvin",
+      "email": "melvin@email.com",
+      "password": "123",
+      "id": "teF95DniL24"
+    }
+  ],
+  "capturados": [
+    {
+      "userId": "teF95DniL24",
+      "pokemonId": 36,
+      "nome": "clefable",
+      "imagem": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/36.png",
+      "level": 14,
+      "hpMax": 62,
+      "hpAtual": 62,
+      "ataque": 24,
+      "defesa": 19,
+      "id": "vOGTuOvbLNQ"
+    },
+    {
+      "userId": "teF95DniL24",
+      "pokemonId": 144,
+      "nome": "articuno",
+      "imagem": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/144.png",
+      "level": 6,
+      "hpMax": 42,
+      "hpAtual": 42,
+      "ataque": 16,
+      "defesa": 14,
+      "id": "huIboxcCC8o"
+    },
+    {
+      "userId": "teF95DniL24",
+      "pokemonId": 94,
+      "nome": "gengar",
+      "imagem": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/94.png",
+      "level": 14,
+      "hpMax": 63,
+      "hpAtual": 63,
+      "ataque": 24,
+      "defesa": 22,
+      "id": "qn_I66pUuBg"
+    },
+    {
+      "userId": "teF95DniL24",
+      "pokemonId": 28,
+      "nome": "sandslash",
+      "imagem": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/28.png",
+      "level": 11,
+      "hpMax": 57,
+      "hpAtual": 57,
+      "ataque": 23,
+      "defesa": 17,
+      "id": "13i3L1ybykI"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
