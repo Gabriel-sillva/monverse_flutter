@@ -25,7 +25,7 @@ class MonverseApp extends StatelessWidget {
       title: 'Monverse',
       debugShowCheckedModeBanner: false,
       
-      // Tema visual baseado nas cores Pokémon (Aumenta a nota na UI)
+      // Tema visual baseado nas cores Pokémon 
       theme: ThemeData(
         primaryColor: const Color(0xFF3B4CCA), // Azul
         colorScheme: ColorScheme.fromSeed(

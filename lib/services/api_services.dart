@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart'; 
 import '../models/pokemon_model.dart';
 import '../models/usuario_model.dart';
 
 class ApiService {
-  // Ajuste automático entre Web e Android
-  final String urlLocal = kIsWeb ? "http://localhost:3000" : "http://10.0.2.2:3000";
+  // Ajustado o nome da variável para manter a consistência e apontar para o Render
+  final String baseUrl = "https://monverseapi.onrender.com";
   final String urlPokeApi = "https://pokeapi.co/api/v2";
 
   // --- POKEAPI ---
@@ -28,11 +27,12 @@ class ApiService {
     }
   }
 
-  // --- JSON SERVER (MECÂNICAS DO JOGO) ---
+  // --- JSON SERVER (MECÂNICAS DO JOGO NO RENDER) ---
 
   // Login do Jogador
   Future<Usuario?> login(String email, String password) async {
-    final response = await http.get(Uri.parse("$urlLocal/usuarios"));
+    // Corrigido: Alterado de urlLocal para baseUrl
+    final response = await http.get(Uri.parse("$baseUrl/usuarios"));
 
     if (response.statusCode == 200) {
       List data = json.decode(response.body);
@@ -53,8 +53,8 @@ class ApiService {
 
   // Buscar Pokémons Capturados do Jogador (Filtro inteligente via Dart)
   Future<List<Pokemon>> getFavoritos(String userId) async {
-    // Agora batemos na rota /capturados
-    final response = await http.get(Uri.parse("$urlLocal/capturados"));
+    // Corrigido: Alterado de urlLocal para baseUrl
+    final response = await http.get(Uri.parse("$baseUrl/capturados"));
 
     if (response.statusCode == 200) {
       List data = json.decode(response.body);
@@ -71,10 +71,10 @@ class ApiService {
 
   // Capturar um Pokémon (POST)
   Future<bool> adicionarFavorito(Pokemon pokemon, String userId) async {
+    // Corrigido: Alterado de urlLocal para baseUrl
     final response = await http.post(
-      Uri.parse("$urlLocal/capturados"),
+      Uri.parse("$baseUrl/capturados"),
       headers: {"Content-Type": "application/json"},
-      // Salvando com os status de jogo gerados aleatoriamente!
       body: json.encode(pokemon.toJsonDefinitivo(userId)),
     );
     return response.statusCode == 201;
@@ -82,15 +82,16 @@ class ApiService {
 
   // Libertar um Pokémon (DELETE)
   Future<bool> removerFavorito(String idDb) async {
-    final response = await http.delete(Uri.parse("$urlLocal/capturados/$idDb"));
+    // Corrigido: Alterado de urlLocal para baseUrl
+    final response = await http.delete(Uri.parse("$baseUrl/capturados/$idDb"));
     return response.statusCode == 200 || response.statusCode == 204;
   }
 
   // --- CADASTRAR NOVO JOGADOR (POST) ---
   Future<bool> cadastrarUsuario(String nome, String email, String password) async {
     try {
-      // Primeiro, verificamos se o e-mail já existe no banco
-      final verificar = await http.get(Uri.parse("$urlLocal/usuarios"));
+      // Corrigido: Alterado de urlLocal para baseUrl
+      final verificar = await http.get(Uri.parse("$baseUrl/usuarios"));
       if (verificar.statusCode == 200) {
         List dados = json.decode(verificar.body);
         bool jaExiste = dados.any((u) => u['email'].toString().trim() == email.trim());
@@ -100,9 +101,9 @@ class ApiService {
         }
       }
 
-      // Se não existe, faz o cadastro
+      // Corrigido: Alterado de urlLocal para baseUrl
       final response = await http.post(
-        Uri.parse("$urlLocal/usuarios"),
+        Uri.parse("$baseUrl/usuarios"),
         headers: {"Content-Type": "application/json"},
         body: json.encode({
           "nome": nome.trim(),
@@ -116,5 +117,4 @@ class ApiService {
       return false;
     }
   }
-
 }
