@@ -5,26 +5,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pokemon_model.dart';
 import '../services/api_services.dart';
 
-// Ajustando os caminhos relativos de forma explícita para evitar erros de importação
 import './details_page.dart';     
 import './favoritos_page.dart';   
 import './login_page.dart';
 
 // ==========================================
-// 1. ABA DO RADAR (CAÇA POKÉMON)
+// 1. ABA DO RADAR (CAÇA POKÉMON COM RETORNO DE CAPTURA)
 // ==========================================
 class RadarTab extends StatelessWidget {
   final bool procurandoGps;
   final String coordenadasTexto;
   final List<Pokemon> pokemonsNoRadar;
+  final List<int> idsCapturados; // Nova lista para saber o que já foi pego
   final VoidCallback onEscanear;
+  final Function(Pokemon) onInteragir; // Nova função para gerenciar o clique
 
   const RadarTab({
     super.key,
     required this.procurandoGps,
     required this.coordenadasTexto,
     required this.pokemonsNoRadar,
+    required this.idsCapturados,
     required this.onEscanear,
+    required this.onInteragir,
   });
 
   @override
@@ -32,7 +35,6 @@ class RadarTab extends StatelessWidget {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Status das Coordenadas
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
@@ -50,7 +52,6 @@ class RadarTab extends StatelessWidget {
             ),
           ),
 
-          // Área do Radar
           Container(
             padding: const EdgeInsets.symmetric(vertical: 30),
             child: procurandoGps
@@ -85,6 +86,10 @@ class RadarTab extends StatelessWidget {
                             itemCount: pokemonsNoRadar.length,
                             itemBuilder: (context, index) {
                               final poke = pokemonsNoRadar[index];
+                              
+                              // Verifica se este Pokémon específico já está na lista de capturados
+                              final bool jaCapturado = idsCapturados.contains(poke.idPokeApi);
+
                               return Card(
                                 elevation: 3,
                                 margin: const EdgeInsets.only(bottom: 12),
@@ -92,17 +97,37 @@ class RadarTab extends StatelessWidget {
                                 child: ListTile(
                                   leading: Image.network(poke.imagem, width: 50),
                                   title: Text(poke.nome.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                  subtitle: const Text("Status: Próximo à sua localização", style: TextStyle(fontSize: 12)),
-                                  trailing: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => DetailsPage(pokemon: poke)),
-                                      );
-                                    },
-                                    child: const Text("INTERAGIR", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  subtitle: Text(
+                                    jaCapturado ? "Registrado na sua Pokédex" : "Status: Próximo à sua localização",
+                                    style: TextStyle(fontSize: 12, color: jaCapturado ? Colors.green[700] : Colors.grey[600]),
                                   ),
+                                  // Modificação visual baseada no status de captura
+                                  trailing: jaCapturado
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green[50],
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.green),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                              SizedBox(width: 4),
+                                              Text("CAPTURADO", style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                                            ],
+                                          ),
+                                        )
+                                      : ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.orange, 
+                                            foregroundColor: Colors.white, 
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                                          ),
+                                          onPressed: () => onInteragir(poke),
+                                          child: const Text("INTERAGIR", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                        ),
                                 ),
                               );
                             },
@@ -111,7 +136,6 @@ class RadarTab extends StatelessWidget {
                       ),
           ),
           
-          // Botão de Escanear
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 25),
             child: SizedBox(
@@ -137,7 +161,7 @@ class RadarTab extends StatelessWidget {
 }
 
 // ==========================================
-// 2. ABA DO MINI-GAME (TELA EXCLUSIVA)
+// 2. ABA DO MINI-GAME 
 // ==========================================
 class GameTab extends StatelessWidget {
   final Pokemon? pokemonDoGame;
@@ -250,7 +274,7 @@ class GameTab extends StatelessWidget {
 }
 
 // ==========================================
-// 3. TELA PRINCIPAL (ESTADO GLOBAL)
+// 3. TELA PRINCIPAL (GERENCIAMENTO DE ESTADO E INVENTÁRIO)
 // ==========================================
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -263,6 +287,7 @@ class _HomePageState extends State<HomePage> {
   final ApiService _apiService = ApiService();
   List<Pokemon> _todosPokemonsDaApi = [];
   List<Pokemon> _pokemonsNoRadar = [];
+  List<int> _idsCapturados = []; // Lista local para monitorar os já capturados
   bool _carregando = true;
   bool _procurandoGps = false;
   String _coordenadasTexto = "Clique no radar para buscar";
@@ -285,11 +310,40 @@ class _HomePageState extends State<HomePage> {
       final lista = await _apiService.buscarTodosPokemons();
       setState(() {
         _todosPokemonsDaApi = lista;
-        _carregando = false;
       });
+      
+      // Busca quais IDs o usuário já capturou na nuvem do Render
+      await _atualizarListaDeCapturados();
+      
+      setState(() => _carregando = false);
       _gerarNovoRoundGame();
     } catch (e) {
       setState(() => _carregando = false);
+    }
+  }
+
+  // Função dedicada a bater no Render e atualizar o inventário de capturados
+  Future<void> _atualizarListaDeCapturados() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    if (userId != null) {
+      final capturados = await _apiService.getFavoritos(userId);
+      setState(() {
+        _idsCapturados = capturados.map((p) => p.idPokeApi).toList();
+      });
+    }
+  }
+
+  // Gerencia a navegação para a DetailsPage e espera o resultado da captura
+  void _gerenciarInteracao(Pokemon pokemon) async {
+    final resultadoCaptura = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => DetailsPage(pokemon: pokemon)),
+    );
+
+    // Se o resultado voltar como true (Sucesso na captura), atualiza a Home imediatamente
+    if (resultadoCaptura == true) {
+      _atualizarListaDeCapturados();
     }
   }
 
@@ -345,43 +399,44 @@ class _HomePageState extends State<HomePage> {
   void _escanearRegiaoGps() async {
     setState(() {
       _procurandoGps = true;
-      _coordenadasTexto = "Obtendo sinal do GPS real...";
+      _coordenadasTexto = "Obtendo sinal do GPS...";
     });
 
+    double latitude = -22.8609; 
+    double longitude = -47.1429;
+
     try {
-      LocationPermission permissao = await Geolocator.requestPermission();
-      
-      if (permissao == LocationPermission.denied || permissao == LocationPermission.deniedForever) {
-        setState(() {
-          _coordenadasTexto = "Permissão de GPS negada!";
-          _procurandoGps = false;
-        });
-        return;
+      LocationPermission permissao = await Geolocator.checkPermission();
+      if (permissao == LocationPermission.denied) {
+        permissao = await Geolocator.requestPermission();
       }
+      
+      if (permissao != LocationPermission.denied && permissao != LocationPermission.deniedForever) {
+        Position posicao = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 4), 
+        );
+        latitude = posicao.latitude;
+        longitude = posicao.longitude;
+      }
+    } catch (e) {
+      // Usando coordenadas simuladas se o hardware falhar
+    }
 
-      Position posicao = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high
-      );
-
-      var random = Random();
-      List<Pokemon> sorteados = [];
+    var random = Random();
+    List<Pokemon> sorteados = [];
+    if (_todosPokemonsDaApi.isNotEmpty) {
       for (int i = 0; i < 3; i++) {
         int indexAleatorio = random.nextInt(_todosPokemonsDaApi.length);
         sorteados.add(_todosPokemonsDaApi[indexAleatorio]);
       }
-
-      setState(() {
-        _coordenadasTexto = "Lat: ${posicao.latitude.toStringAsFixed(4)} | Lng: ${posicao.longitude.toStringAsFixed(4)}";
-        _pokemonsNoRadar = sorteados;
-        _procurandoGps = false;
-      });
-
-    } catch (e) {
-      setState(() {
-        _coordenadasTexto = "Erro ao ler GPS. Ative a localização!";
-        _procurandoGps = false;
-      });
     }
+
+    setState(() {
+      _coordenadasTexto = "Lat: ${latitude.toStringAsFixed(4)} | Lng: ${longitude.toStringAsFixed(4)} (Simulado)";
+      _pokemonsNoRadar = sorteados;
+      _procurandoGps = false;
+    });
   }
 
   @override
@@ -391,7 +446,9 @@ class _HomePageState extends State<HomePage> {
         procurandoGps: _procurandoGps,
         coordenadasTexto: _coordenadasTexto,
         pokemonsNoRadar: _pokemonsNoRadar,
+        idsCapturados: _idsCapturados, // Passando a lista de capturados para a aba do Radar
         onEscanear: _escanearRegiaoGps,
+        onInteragir: _gerenciarInteracao, // Passando o gerenciador de cliques
       ),
       GameTab(
         pokemonDoGame: _pokemonDoGame,
@@ -433,17 +490,23 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.menu_book, color: Colors.redAccent, size: 26),
             tooltip: "Abrir Pokédex",
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              // Quando abrir a Pokédex e voltar, também atualiza o status
+              await Navigator.push(
                 context, 
                 MaterialPageRoute(builder: (context) => PokedexPage(todosPokemons: _todosPokemonsDaApi))
               );
+              _atualizarListaDeCapturados();
             },
           ),
           IconButton(
             icon: const Icon(Icons.backpack, color: Colors.amber, size: 28),
             tooltip: "Mochila / Favoritos",
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FavoritosPage())),
+            onPressed: () async {
+              // Quando abrir a Mochila e voltar, atualiza caso tenha libertado algum Pokémon
+              await Navigator.push(context, MaterialPageRoute(builder: (context) => const FavoritosPage()));
+              _atualizarListaDeCapturados();
+            },
           )
         ],
       ),
@@ -451,7 +514,6 @@ class _HomePageState extends State<HomePage> {
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF1E293B)))
           : abas[_abaAtual],
 
-      // CONSERTO DA BARRA INFERIOR AQUI
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _abaAtual,
         onTap: (index) {
@@ -462,7 +524,6 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: const Color(0xFF1E293B),
         selectedItemColor: Colors.amber,
         unselectedItemColor: Colors.white60,
-        // Correção do erro do print: trocado selectedFontWeight pela propriedade estilizada correta
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold), 
         items: const [
           BottomNavigationBarItem(
@@ -480,7 +541,7 @@ class _HomePageState extends State<HomePage> {
 }
 
 // ==========================================
-// 4. CLASSE DA POKÉDEX (CORRIGIDO POKEMONID)
+// 4. CLASSE DA POKÉDEX
 // ==========================================
 class PokedexPage extends StatefulWidget {
   final List<Pokemon> todosPokemons;
@@ -537,8 +598,6 @@ class _PokedexPageState extends State<PokedexPage> {
               itemCount: widget.todosPokemons.length,
               itemBuilder: (context, index) {
                 final pokemon = widget.todosPokemons[index];
-                
-                // CONSERTO DO PRINT 1: usando idPokeApi que é o campo real da classe
                 final bool jaCapturado = _idsCapturados.contains(pokemon.idPokeApi);
 
                 return GestureDetector(
@@ -610,7 +669,6 @@ class _PokedexPageState extends State<PokedexPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // CONSERTO DO PRINT 1 AQUI TAMBÉM: Alterado pokemonId para idPokeApi
             Text("Nº na Pokédex: #${pokemon.idPokeApi.toString().padLeft(3, '0')}", style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             const Text(
